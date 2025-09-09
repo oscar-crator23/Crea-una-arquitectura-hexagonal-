@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .dashboard-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .user-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .btn-logout {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .btn-logout:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .user-data p {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>Dashboard</h1>
+            <button id="logoutBtn" class="btn-logout">Cerrar Sesión</button>
+        </div>
+        
+        <div class="user-info">
+            <h2>Información del Usuario</h2>
+            <div id="userData" class="user-data"></div>
+        </div>
+        
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        class Dashboard {
+            constructor() {
+                this.logoutBtn = document.getElementById('logoutBtn');
+                this.messageDiv = document.getElementById('message');
+                this.userDataDiv = document.getElementById('userData');
+                this.init();
+            }
+
+            init() {
+                this.checkAuth();
+                this.logoutBtn.addEventListener('click', () => this.logout());
+            }
+
+            async checkAuth() {
+                const token = localStorage.getItem('token');
+                
+                if (!token) {
+                    this.redirectToLogin();
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.status === 401) {
+                        this.redirectToLogin();
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error('Error del servidor');
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayUserData(data.user);
+                    } else {
+                        this.showMessage(data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    this.showMessage('Error de autenticación', 'error');
+                    setTimeout(() => {
+                        this.redirectToLogin();
+                    }, 2000);
+                }
+            }
+
+            displayUserData(user) {
+                this.userDataDiv.innerHTML = `
+                    <p><strong>ID:</strong> ${user.id}</p>
+                    <p><strong>Usuario:</strong> ${user.username}</p>
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>Fecha de registro:</strong> ${new Date(user.createdAt).toLocaleDateString()}</p>
+                `;
+            }
+
+            logout() {
+                localStorage.removeItem('token');
+                this.redirectToLogin();
+            }
+
+            redirectToLogin() {
+                window.location.href = '/login';
+            }
+
+            showMessage(text, type) {
+                this.messageDiv.textContent = text;
+                this.messageDiv.className = `message ${type}`;
+                this.messageDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    this.messageDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Inicializar dashboard cuando el DOM esté cargado
+        document.addEventListener('DOMContentLoaded', () => {
+            new Dashboard();
+        });
+    </script>
+</body>
+</html>
